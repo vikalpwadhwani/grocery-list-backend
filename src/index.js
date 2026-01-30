@@ -24,13 +24,17 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initializeSocket(server);
 
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: '*',
-  credentials: true,
+// ✅ CORS - Allow all origins (MUST be before other middleware)
+app.use(cors());
+
+// Helmet with relaxed settings for API
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false,
 }));
-app.use(morgan('dev'));
+
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -40,6 +44,7 @@ app.get('/', (req, res) => {
     success: true,
     message: '🛒 Shared Grocery List API is running!',
     version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
   });
 });
@@ -74,7 +79,6 @@ app.use((err, req, res, next) => {
   res.status(err.statusCode || 500).json({
     success: false,
     message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
 
@@ -86,29 +90,14 @@ const startServer = async () => {
     await testConnection();
     await syncDatabase();
     
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`
     ╔═══════════════════════════════════════════════════════════╗
     ║                                                           ║
     ║   🛒 Shared Grocery List API                              ║
     ║                                                           ║
-    ║   🚀 Server:    http://localhost:${PORT}                     ║
-    ║   📊 Status:    Running                                   ║
-    ║   🌍 Env:       ${process.env.NODE_ENV || 'development'}                               ║
-    ║                                                           ║
-    ║   📍 Endpoints:                                           ║
-    ║      POST   /api/auth/register                            ║
-    ║      POST   /api/auth/login                               ║
-    ║      GET    /api/auth/me                                  ║
-    ║      GET    /api/lists                                    ║
-    ║      POST   /api/lists                                    ║
-    ║      GET    /api/lists/:id                                ║
-    ║      POST   /api/lists/join                               ║
-    ║      DELETE /api/lists/:id                                ║
-    ║      POST   /api/lists/:listId/items                      ║
-    ║      PATCH  /api/lists/:listId/items/:itemId/toggle       ║
-    ║      PUT    /api/lists/:listId/items/:itemId              ║
-    ║      DELETE /api/lists/:listId/items/:itemId              ║
+    ║   🚀 Server running on port ${PORT}                          ║
+    ║   🌍 Environment: ${process.env.NODE_ENV || 'development'}                          ║
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
       `);
